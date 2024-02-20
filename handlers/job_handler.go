@@ -56,6 +56,8 @@ func (j *JobHandler) WriteExcel(f *excelize.File, sheetName string) error {
 		nodeSelector := job.Spec.Template.Spec.NodeSelector
 		cpuRequests, memoryRequests, cpuLimits, memoryLimits := utils.ExtractResources(job.Spec.Template.Spec)
 		imageVersions := utils.ExtractImageVersions(job.Spec.Template.Spec)
+		qosClass := utils.DetermineQoSClass(job.Spec.Template.Spec)
+
 		// Convert int32 pointers to int for display purposes
 
 		record := []interface{}{
@@ -67,6 +69,7 @@ func (j *JobHandler) WriteExcel(f *excelize.File, sheetName string) error {
 			cpuLimits,
 			memoryLimits,
 			imageVersions,
+			qosClass,
 		}
 
 		for i, value := range record {
