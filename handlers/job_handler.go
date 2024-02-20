@@ -29,6 +29,7 @@ var JobHeaders = []string{
 	"Memory Limits",
 	"Image Versions",
 	"QoS Class",
+	"Owner",
 }
 
 // FetchResources fetches all Jobs across all namespaces and stores them.

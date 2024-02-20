@@ -51,4 +51,5 @@ Example usage:
 
 The tool will generate a file named k8s_report.xlsx with the exported data.
 
-Contributing
+# Future steps:
+1. Output to CSV in addition to xlsx

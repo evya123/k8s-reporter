@@ -35,6 +35,7 @@ var DeploymentHeaders = []string{
 	"Memory Limits",
 	"Image Versions",
 	"QoS Class",
+	"Owner",
 }
 
 // FetchResources fetches all Deployments across all namespaces and stores them.
