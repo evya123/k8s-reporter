@@ -1,4 +1,4 @@
-// cmd/deployments.go
+// cmd/jobs.go
 
 package cmd
 

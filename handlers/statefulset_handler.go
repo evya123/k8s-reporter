@@ -1,4 +1,4 @@
-// handlers/Statefulset_handler.go
+// handlers/statefulset_handler.go
 
 package handlers
 

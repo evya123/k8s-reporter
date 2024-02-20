@@ -1,4 +1,4 @@
-// cmd/deployments.go
+// cmd/statefulsets.go
 
 package cmd
 

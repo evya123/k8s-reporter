@@ -1,4 +1,4 @@
-// cmd/run.go
+// cmd/run-all.go
 
 package cmd
 
