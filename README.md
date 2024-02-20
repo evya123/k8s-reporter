@@ -17,6 +17,7 @@ Before you begin, ensure you have met the following requirements:
 - You have installed Go version 1.15 or above.
 - You have a Kubernetes cluster running and have access to it.
 - You have configured `kubectl` and have the appropriate context and permissions to interact with your Kubernetes cluster.
+- The CLI assume that you have kubeconfig at the default location
 
 ## Installation
 
