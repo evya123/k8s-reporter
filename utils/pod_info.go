@@ -7,8 +7,10 @@ import (
 	"strconv"
 	"strings"
 
+	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/client-go/kubernetes"
 )
 
 // formatNodeSelector takes a map and returns a formatted string of key-value pairs
@@ -34,27 +36,55 @@ func FormatResourceQuantity(q resource.Quantity, resourceName v1.ResourceName) s
 }
 
 // ExtractResources takes a PodSpec and returns formatted strings of CPU and memory requests and limits.
-func ExtractResources(podSpec v1.PodSpec) (cpuRequests, memoryRequests, cpuLimits, memoryLimits string) {
+func ExtractResources(clientset *kubernetes.Clientset, podSpec v1.PodSpec, namespace string) (cpuRequests, memoryRequests, cpuLimits, memoryLimits string) {
 	var cpuReqTotal, memReqTotal, cpuLimitTotal, memLimitTotal resource.Quantity
 	for _, container := range podSpec.Containers {
 		if cpu, ok := container.Resources.Requests[v1.ResourceCPU]; ok {
 			cpuReqTotal.Add(cpu)
+		} else {
+			Debug("No CPU request specified for container", zap.String("containerName", container.Name))
 		}
 		if memory, ok := container.Resources.Requests[v1.ResourceMemory]; ok {
 			memReqTotal.Add(memory)
+		} else {
+			Debug("No memory request specified for container", zap.String("containerName", container.Name))
 		}
 		if cpu, ok := container.Resources.Limits[v1.ResourceCPU]; ok {
 			cpuLimitTotal.Add(cpu)
+		} else {
+			Debug("No CPU limit specified for container", zap.String("containerName", container.Name))
 		}
 		if memory, ok := container.Resources.Limits[v1.ResourceMemory]; ok {
 			memLimitTotal.Add(memory)
+		} else {
+			Debug("No memory limit specified for container", zap.String("containerName", container.Name))
 		}
+	}
+
+	// After accumulating requests and limits, check if they are zero and set defaults if necessary
+	if cpuReqTotal.IsZero() {
+		Debug("Total CPU request is zero, getting default CPU request for namespace", zap.String("namespace", namespace))
+		cpuReqTotal = GetNamespaceDefaultCPURequests(clientset, namespace)
+	}
+	if memReqTotal.IsZero() {
+		Debug("Total memory request is zero, getting default memory request for namespace", zap.String("namespace", namespace))
+		memReqTotal = GetNamespaceDefaultMemoryRequests(clientset, namespace)
+	}
+	if cpuLimitTotal.IsZero() {
+		Debug("Total CPU limit is zero, getting default CPU limit for namespace", zap.String("namespace", namespace))
+		cpuLimitTotal = GetNamespaceDefaultCPULimits(clientset, namespace)
+	}
+	if memLimitTotal.IsZero() {
+		Debug("Total memory limit is zero, getting default memory limit for namespace", zap.String("namespace", namespace))
+		memLimitTotal = GetNamespaceDefaultMemoryLimits(clientset, namespace)
 	}
 
 	cpuRequests = strconv.FormatInt(cpuReqTotal.MilliValue(), 10) + "m"
 	memoryRequests = FormatResourceQuantity(memReqTotal, v1.ResourceMemory)
 	cpuLimits = strconv.FormatInt(cpuLimitTotal.MilliValue(), 10) + "m"
 	memoryLimits = FormatResourceQuantity(memLimitTotal, v1.ResourceMemory)
+
+	Debug("Extracted resources", zap.String("CPU Requests", cpuRequests), zap.String("Memory Requests", memoryRequests), zap.String("CPU Limits", cpuLimits), zap.String("Memory Limits", memoryLimits))
 
 	return
 }

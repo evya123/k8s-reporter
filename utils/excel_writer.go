@@ -5,9 +5,8 @@ package utils
 import (
 	"os"
 
-	"log"
-
 	"github.com/xuri/excelize/v2"
+	"go.uber.org/zap"
 )
 
 // OpenOrCreateExcelFile checks if an Excel file exists and opens it, or creates a new file if it doesn't exist.
@@ -18,7 +17,7 @@ func OpenOrCreateExcelFile(filePath string) (*excelize.File, error) {
 		// File exists, open it
 		f, err = excelize.OpenFile(filePath)
 		if err != nil {
-			log.Printf("ERROR: Failed to open existing Excel file: %s\n", err)
+			Error("Failed to open existing Excel file", zap.String("filePath", filePath), zap.Error(err))
 			return nil, err
 		}
 	} else if os.IsNotExist(err) {
@@ -26,7 +25,7 @@ func OpenOrCreateExcelFile(filePath string) (*excelize.File, error) {
 		f = excelize.NewFile()
 	} else {
 		// Some other error occurred when checking file existence
-		log.Printf("ERROR: Failed to check Excel file existence: %s\n", err)
+		Error("Failed to check Excel file existence", zap.String("filePath", filePath), zap.Error(err))
 		return nil, err
 	}
 	return f, nil
@@ -34,41 +33,41 @@ func OpenOrCreateExcelFile(filePath string) (*excelize.File, error) {
 
 // AddSheetToExcelFile adds a new sheet to the Excel file with the given headers.
 func AddSheetToExcelFile(f *excelize.File, sheetName string, headers []string) error {
-
 	// Check if the sheet already exists
 	idx, err := f.GetSheetIndex(sheetName)
 	if err != nil {
-		log.Printf("ERROR: Cloud not check if sheet already exist: %s\n", err)
+		Error("Could not check if sheet already exists", zap.String("sheetName", sheetName), zap.Error(err))
 		return err
 	} else if idx != -1 {
-		log.Println("Sheet already exists, no need to add it again")
+		Info("Sheet already exists, no need to add it again", zap.String("sheetName", sheetName))
 		return nil
 	}
 
 	// Add a new sheet
 	index, err := f.NewSheet(sheetName)
 	if err != nil {
-		log.Printf("ERROR: Cloud not create sheet: %s\n", err)
+		Error("Could not create sheet", zap.String("sheetName", sheetName), zap.Error(err))
 		return err
 	}
 	for i, header := range headers {
 		cell, err := excelize.CoordinatesToCellName(i+1, 1) // 1-based indexing
 		if err != nil {
-			log.Printf("ERROR: Failed to convert coordinates to cell name: %s\n", err)
+			Error("Failed to convert coordinates to cell name", zap.String("sheetName", sheetName), zap.Error(err))
 			return err
 		}
 		if err := f.SetCellValue(sheetName, cell, header); err != nil {
-			log.Printf("ERROR: Failed to set cell value: %s\n", err)
+			Error("Failed to set cell value", zap.String("cell", cell), zap.String("sheetName", sheetName), zap.Error(err))
 			return err
 		}
 	}
 	f.SetActiveSheet(index)
-	log.Printf("INFO: Added new sheet '%s' to Excel file\n", sheetName)
+	Info("Added new sheet to Excel file", zap.String("sheetName", sheetName))
 
+	// Delete default sheet if it exists and isn't the one we just added
 	err = f.DeleteSheet("Sheet1")
 
 	if err != nil {
-		log.Printf("ERROR: Cloud not delete sheet1: %s\n", err)
+		Error("Could not delete default sheet", zap.Error(err))
 		return err
 	}
 

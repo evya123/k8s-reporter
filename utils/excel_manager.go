@@ -5,9 +5,8 @@ package utils
 import (
 	"sync"
 
-	"log"
-
 	"github.com/xuri/excelize/v2"
+	"go.uber.org/zap"
 )
 
 // excelFileManager manages a singleton instance of an Excel file.
@@ -34,7 +33,7 @@ func (m *excelFileManager) OpenOrCreateExcelFile(filePath string) error {
 		m.file, err = OpenOrCreateExcelFile(filePath)
 	})
 	if err != nil {
-		log.Printf("ERROR: Failed to open or create Excel file: %s\n", err)
+		Error("Failed to open or create Excel file", zap.String("filePath", filePath), zap.Error(err))
 		return err
 	}
 	return nil
@@ -49,12 +48,12 @@ func (m *excelFileManager) GetExcelFile() *excelize.File {
 func (m *excelFileManager) SaveExcelFile(filePath string) error {
 	if m.file != nil {
 		if err := m.file.SaveAs(filePath); err != nil {
-			log.Printf("ERROR: Failed to save the Excel file: %s\n", err)
+			Error("Failed to save the Excel file", zap.String("filePath", filePath), zap.Error(err))
 			return err
 		}
-		log.Println("INFO: Excel file saved successfully.")
+		Info("Excel file saved successfully", zap.String("filePath", filePath))
 		return nil
 	}
-	log.Println("ERROR: No Excel file to save.")
+	Warn("No Excel file to save", zap.String("filePath", filePath))
 	return nil
 }

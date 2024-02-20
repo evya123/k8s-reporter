@@ -5,9 +5,9 @@ package cmd
 import (
 	"k8s-reporter/handlers"
 	"k8s-reporter/utils"
-	"log"
 
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
 // deploymentsCmd represents the deployments command
@@ -20,40 +20,40 @@ var deploymentsCmd = &cobra.Command{
 
 func deployments(cmd *cobra.Command, args []string) error {
 	kubeconfig, _ := cmd.Flags().GetString("kubeconfig")
-	log.Println("INFO: Building Kubernetes clientset")
+	utils.Info("Building Kubernetes clientset")
 	clientset, err := utils.GetKubernetesClient(kubeconfig)
 	if err != nil {
-		log.Fatalf("ERROR: Error building Kubernetes clientset: %s", err.Error())
+		utils.Fatal("Error building Kubernetes clientset", zap.Error(err))
 		return err
 	}
 
-	log.Println("INFO: Fetching Deployments")
+	utils.Info("Fetching Deployments")
 	deploymentHandler := &handlers.DeploymentHandler{}
 	if err := deploymentHandler.FetchResources(clientset); err != nil {
-		log.Fatalf("ERROR: Error fetching Deployments: %s", err.Error())
+		utils.Fatal("Error fetching Deployments", zap.Error(err))
 		return err
 	}
 
 	excelManager := utils.GetExcelFileManager()
 	if err := excelManager.OpenOrCreateExcelFile("k8s_report.xlsx"); err != nil {
-		log.Fatalf("ERROR: %s", err)
+		utils.Fatal("Failed to open or create Excel file", zap.Error(err))
 		return err
 	}
 
 	excelFile := excelManager.GetExcelFile()
-	log.Println("INFO: Adding Deployments sheet to Excel file")
+	utils.Info("Adding Deployments sheet to Excel file")
 	if err := utils.AddSheetToExcelFile(excelFile, "Deployments", handlers.DeploymentHeaders); err != nil {
-		log.Fatalf("ERROR: Failed to add sheet to Excel file: %s", err)
+		utils.Fatal("Failed to add sheet to Excel file", zap.Error(err))
 		return err
 	}
 
-	log.Println("INFO: Writing Deployments data to Excel sheet")
-	if err := deploymentHandler.WriteExcel(excelFile, "Deployments"); err != nil {
-		log.Fatalf("ERROR: Error writing to Excel: %s", err)
+	utils.Info("Writing Deployments data to Excel sheet")
+	if err := deploymentHandler.WriteExcel(clientset, excelFile, "Deployments"); err != nil {
+		utils.Fatal("Error writing to Excel", zap.Error(err))
 		return err
 	}
 
-	log.Println("INFO: Deployments data written to Excel file successfully.")
+	utils.Info("Deployments data written to Excel file successfully")
 	return nil
 }
 

@@ -3,10 +3,11 @@
 package cmd
 
 import (
-	"fmt"
+	"k8s-reporter/utils"
 	"os"
 
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
 var rootCmd = &cobra.Command{
@@ -16,7 +17,7 @@ var rootCmd = &cobra.Command{
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
+		utils.Error("Execution failed", zap.Error(err))
 		os.Exit(1)
 	}
 }

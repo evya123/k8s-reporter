@@ -5,9 +5,9 @@ package cmd
 import (
 	"k8s-reporter/handlers"
 	"k8s-reporter/utils"
-	"log"
 
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
 // daemonsetsCmd represents the daemonsets command
@@ -23,36 +23,36 @@ k8s-reporter daemonsets
 k8s-reporter daemonsets --kubeconfig=/path/to/kubeconfig`,
 	Run: func(cmd *cobra.Command, args []string) {
 		kubeconfig, _ := cmd.Flags().GetString("kubeconfig")
-		log.Println("INFO: Building Kubernetes clientset")
+		utils.Info("Building Kubernetes clientset")
 		clientset, err := utils.GetKubernetesClient(kubeconfig)
 		if err != nil {
-			log.Fatalf("ERROR: Error building Kubernetes clientset: %s", err.Error())
+			utils.Fatal("Error building Kubernetes clientset", zap.Error(err))
 		}
 
 		daemonSetHandler := &handlers.DaemonSetHandler{}
-		log.Println("INFO: Fetching DaemonSets")
+		utils.Info("Fetching DaemonSets")
 		if err := daemonSetHandler.FetchResources(clientset); err != nil {
-			log.Fatalf("ERROR: Error fetching DaemonSets: %s", err.Error())
+			utils.Fatal("Error fetching DaemonSets", zap.Error(err))
 		}
 
 		excelManager := utils.GetExcelFileManager()
 		if err := excelManager.OpenOrCreateExcelFile("k8s_report.xlsx"); err != nil {
-			log.Fatalf("ERROR: %s", err)
+			utils.Fatal("Failed to open or create Excel file", zap.Error(err))
 		}
 
 		excelFile := excelManager.GetExcelFile()
 
-		log.Println("INFO: Adding DaemonSets sheet to Excel file")
+		utils.Info("Adding DaemonSets sheet to Excel file")
 		if err := utils.AddSheetToExcelFile(excelFile, "DaemonSets", handlers.DaemonSetHeaders); err != nil {
-			log.Fatalf("ERROR: Failed to add sheet to Excel file: %s", err)
+			utils.Fatal("Failed to add sheet to Excel file", zap.Error(err))
 		}
 
-		log.Println("INFO: Writing DaemonSets data to Excel sheet")
-		if err := daemonSetHandler.WriteExcel(excelFile, "DaemonSets"); err != nil {
-			log.Fatalf("ERROR: Error writing to Excel: %s", err)
+		utils.Info("Writing DaemonSets data to Excel sheet")
+		if err := daemonSetHandler.WriteExcel(clientset, excelFile, "DaemonSets"); err != nil {
+			utils.Fatal("Error writing to Excel", zap.Error(err))
 		}
 
-		log.Println("INFO: DaemonSets data written to Excel file successfully.")
+		utils.Info("DaemonSets data written to Excel file successfully")
 	},
 }
 

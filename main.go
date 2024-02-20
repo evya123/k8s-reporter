@@ -6,13 +6,9 @@ package main
 import (
 	"k8s-reporter/cmd"
 	"k8s-reporter/utils"
-	"log"
 
-	"github.com/xuri/excelize/v2"
+	"go.uber.org/zap"
 )
-
-// Package-level variable to hold the Excel file
-var excelFile *excelize.File
 
 func main() {
 	// Ensure the finalization function runs when the main function exits
@@ -23,10 +19,10 @@ func main() {
 
 // finalize is the finalization function that saves the Excel file.
 func finalize() {
-	log.Println("INFO: Finalizing and saving the Excel report")
+	utils.Info("Finalizing and saving the Excel report")
 	excelManager := utils.GetExcelFileManager()
 	if err := excelManager.SaveExcelFile("k8s_report.xlsx"); err != nil {
-		log.Fatalf("ERROR: Failed to save the Excel report: %s", err)
+		utils.Fatal("Failed to save the Excel report: ", zap.Error(err))
 	}
-	log.Println("INFO: Excel report saved successfully.")
+	utils.Info("Excel report saved successfully.")
 }

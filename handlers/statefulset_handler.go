@@ -5,10 +5,10 @@ package handlers
 import (
 	"context"
 	"k8s-reporter/utils"
-	"log"
 	"strconv"
 
 	"github.com/xuri/excelize/v2"
+	"go.uber.org/zap"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -35,40 +35,39 @@ var StatefulsetHeaders = []string{
 	"Memory Limits",
 	"Image Versions",
 	"QoS Class",
+	"Owner",
 }
 
 // FetchResources fetches all Statefulsets across all namespaces and stores them.
 func (d *StatefulsetHandler) FetchResources(clientset *kubernetes.Clientset) error {
-	log.Println("INFO: Fetching Statefulsets from Kubernetes cluster")
-	Statefulsets, err := clientset.AppsV1().StatefulSets("").List(context.Background(), metav1.ListOptions{})
+	utils.Info("Fetching Statefulsets from Kubernetes cluster")
+	statefulsets, err := clientset.AppsV1().StatefulSets("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		log.Printf("ERROR: Failed to fetch Statefulsets: %s\n", err)
+		utils.Error("Failed to fetch Statefulsets", zap.Error(err))
 		return err
 	}
-	d.Statefulsets = Statefulsets.Items
-	log.Printf("INFO: Fetched %d Statefulsets\n", len(d.Statefulsets))
+	d.Statefulsets = statefulsets.Items
+	utils.Info("Fetched Statefulsets", zap.Int("count", len(d.Statefulsets)))
 	return nil
 }
 
 // WriteExcel writes the information of the fetched Statefulsets to an Excel sheet.
-func (d *StatefulsetHandler) WriteExcel(f *excelize.File, sheetName string) error {
-	log.Printf("INFO: Writing Statefulsets data to Excel sheet: %s\n", sheetName)
+func (d *StatefulsetHandler) WriteExcel(clientset *kubernetes.Clientset, f *excelize.File, sheetName string) error {
+	utils.Info("Writing Statefulsets data to Excel sheet", zap.String("sheetName", sheetName))
 	// Starting from the second row, since the first row is for headers
 	rowIndex := 2
-	for _, Statefulset := range d.Statefulsets {
-		// Extract the necessary data from each Statefulset
-		name := Statefulset.Name
-		namespace := Statefulset.Namespace
-		desiredReplicas := Statefulset.Spec.Replicas
-		currentReplicas := Statefulset.Status.Replicas
-		availableReplicas := Statefulset.Status.AvailableReplicas
-		readyReplicas := Statefulset.Status.ReadyReplicas
-		uptodateReplicas := Statefulset.Status.UpdatedReplicas
-		nodeSelector := Statefulset.Spec.Template.Spec.NodeSelector
-		cpuRequests, memoryRequests, cpuLimits, memoryLimits := utils.ExtractResources(Statefulset.Spec.Template.Spec)
-		imageVersions := utils.ExtractImageVersions(Statefulset.Spec.Template.Spec)
-		qosClass := utils.DetermineQoSClass(Statefulset.Spec.Template.Spec)
-		// Convert int32 pointers to int for display purposes
+	for _, statefulset := range d.Statefulsets {
+		name := statefulset.Name
+		namespace := statefulset.Namespace
+		desiredReplicas := statefulset.Spec.Replicas
+		currentReplicas := statefulset.Status.Replicas
+		availableReplicas := statefulset.Status.AvailableReplicas
+		readyReplicas := statefulset.Status.ReadyReplicas
+		uptodateReplicas := statefulset.Status.UpdatedReplicas
+		nodeSelector := statefulset.Spec.Template.Spec.NodeSelector
+		cpuRequests, memoryRequests, cpuLimits, memoryLimits := utils.ExtractResources(clientset, statefulset.Spec.Template.Spec, namespace)
+		imageVersions := utils.ExtractImageVersions(statefulset.Spec.Template.Spec)
+		qosClass := utils.DetermineQoSClass(statefulset.Spec.Template.Spec)
 		desired := "unknown"
 		if desiredReplicas != nil {
 			desired = strconv.Itoa(int(*desiredReplicas))
@@ -94,16 +93,16 @@ func (d *StatefulsetHandler) WriteExcel(f *excelize.File, sheetName string) erro
 		for i, value := range record {
 			cell, err := excelize.CoordinatesToCellName(i+1, rowIndex)
 			if err != nil {
-				log.Printf("ERROR: Failed to convert coordinates to cell name for Statefulset %s: %s\n", name, err)
+				utils.Error("Failed to convert coordinates to cell name for Statefulset", zap.String("statefulsetName", name), zap.Error(err))
 				return err
 			}
 			if err := f.SetCellValue(sheetName, cell, value); err != nil {
-				log.Printf("ERROR: Failed to set cell value for Statefulset %s: %s\n", name, err)
+				utils.Error("Failed to set cell value for Statefulset", zap.String("statefulsetName", name), zap.Error(err))
 				return err
 			}
 		}
 		rowIndex++
 	}
-	log.Printf("INFO: Successfully written Statefulset data to Excel sheet: %s\n", sheetName)
+	utils.Info("Successfully written Statefulset data to Excel sheet", zap.String("sheetName", sheetName))
 	return nil
 }
