@@ -19,6 +19,3 @@ Each handler file contains a `Headers` variable that defines the column headers 
 
 ## Usage
 Handlers are utilized by the commands defined in the `cmd` directory to perform resource-specific operations.
-
-## Development
-To implement a handler for a new Kubernetes resource, create a struct that satisfies the `ResourceHandler` interface and includes methods for fetching and writing resource data.
