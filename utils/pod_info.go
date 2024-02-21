@@ -36,7 +36,15 @@ func FormatResourceQuantity(q resource.Quantity, resourceName v1.ResourceName) s
 }
 
 // ExtractResources takes a PodSpec and returns formatted strings of CPU and memory requests and limits.
-func ExtractResources(clientset *kubernetes.Clientset, podSpec v1.PodSpec, namespace string) (cpuRequests, memoryRequests, cpuLimits, memoryLimits string) {
+func ExtractResources(clientset *kubernetes.Clientset, podSpec v1.PodSpec, namespace string) (
+	cpuRequests string,
+	memoryRequests string,
+	cpuLimits string,
+	memoryLimits string,
+	cpuDiff string,
+	memoryDiff string,
+	memoryReadiness bool,
+	qosClass string) {
 	var cpuReqTotal, memReqTotal, cpuLimitTotal, memLimitTotal resource.Quantity
 	for _, container := range podSpec.Containers {
 		if cpu, ok := container.Resources.Requests[v1.ResourceCPU]; ok {
@@ -83,9 +91,106 @@ func ExtractResources(clientset *kubernetes.Clientset, podSpec v1.PodSpec, names
 	memoryRequests = FormatResourceQuantity(memReqTotal, v1.ResourceMemory)
 	cpuLimits = strconv.FormatInt(cpuLimitTotal.MilliValue(), 10) + "m"
 	memoryLimits = FormatResourceQuantity(memLimitTotal, v1.ResourceMemory)
+	Debug(
+		"Extracted resources",
+		zap.String("CPU Requests", cpuRequests),
+		zap.String("Memory Requests", memoryRequests),
+		zap.String("CPU Limits", cpuLimits),
+		zap.String("Memory Limits", memoryLimits),
+	)
+	Debug(
+		"Subtracting",
+		zap.String("CPU limit total", cpuLimitTotal.String()),
+		zap.String("CPU request total", cpuReqTotal.String()),
+	)
+	cpuLimitTotal.Sub(cpuReqTotal)
+	cpuDiff = strconv.FormatInt(cpuLimitTotal.MilliValue(), 10) + "m"
 
-	Debug("Extracted resources", zap.String("CPU Requests", cpuRequests), zap.String("Memory Requests", memoryRequests), zap.String("CPU Limits", cpuLimits), zap.String("Memory Limits", memoryLimits))
+	Debug(
+		"Subtracting",
+		zap.String("Memory limit total", memLimitTotal.String()),
+		zap.String("Memory request total", memReqTotal.String()),
+	)
+	memLimitTotal.Sub(memReqTotal)
+	memoryDiff = FormatResourceQuantity(memLimitTotal, v1.ResourceMemory)
 
+	Debug(
+		"Extracted diff",
+		zap.String("CPU Diff", cpuDiff),
+		zap.String("Memory Diff", memoryDiff),
+	)
+
+	memoryReadiness = (memLimitTotal.MilliValue() > memReqTotal.MilliValue()*2)
+	if memoryReadiness {
+		Debug("Memory diff is more then twice the request!")
+	}
+	// Determine QoS class based on the requests and limits
+	guaranteed := true
+	burstable := false
+
+	// Iterate over all containers to determine the QoS class
+	for _, container := range podSpec.Containers {
+		containerRequests := container.Resources.Requests
+		containerLimits := container.Resources.Limits
+
+		// Check if any container does not have explicit requests or limits
+		if len(containerRequests) == 0 || len(containerLimits) == 0 {
+			guaranteed = false
+		}
+
+		// Check for the existence of CPU and memory requests
+		if _, hasCPURequest := containerRequests[v1.ResourceCPU]; !hasCPURequest {
+			guaranteed = false
+		}
+		if _, hasMemoryRequest := containerRequests[v1.ResourceMemory]; !hasMemoryRequest {
+			guaranteed = false
+		}
+
+		// Check for the existence of CPU and memory limits
+		if _, hasCPULimit := containerLimits[v1.ResourceCPU]; !hasCPULimit {
+			guaranteed = false
+		}
+		if _, hasMemoryLimit := containerLimits[v1.ResourceMemory]; !hasMemoryLimit {
+			guaranteed = false
+		}
+
+		// Compare requests with limits to determine if they are equal
+		if cpuRequest, hasCPURequest := containerRequests[v1.ResourceCPU]; hasCPURequest {
+			if cpuLimit, hasCPULimit := containerLimits[v1.ResourceCPU]; hasCPULimit {
+				if cpuRequest.Cmp(cpuLimit) != 0 {
+					guaranteed = false
+				}
+			} else {
+				guaranteed = false
+			}
+		}
+
+		if memRequest, hasMemoryRequest := containerRequests[v1.ResourceMemory]; hasMemoryRequest {
+			if memLimit, hasMemoryLimit := containerLimits[v1.ResourceMemory]; hasMemoryLimit {
+				if memRequest.Cmp(memLimit) != 0 {
+					guaranteed = false
+				}
+			} else {
+				guaranteed = false
+			}
+		}
+
+		// If any container has requests set, mark as burstable
+		if len(containerRequests) > 0 {
+			burstable = true
+		}
+	}
+
+	// Assign the QoS class based on the flags
+	if guaranteed {
+		qosClass = "Guaranteed"
+	} else if burstable {
+		qosClass = "Burstable"
+	} else {
+		qosClass = "BestEffort"
+	}
+
+	// Return all the calculated resource information along with the QoS class
 	return
 }
 

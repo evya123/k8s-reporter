@@ -27,6 +27,9 @@ var JobHeaders = []string{
 	"Memory Requests",
 	"CPU Limits",
 	"Memory Limits",
+	"CPU Diff",
+	"Memory Diff",
+	"Memory diff > 2 x Request",
 	"Image Versions",
 	"QoS Class",
 	"Owner",
@@ -54,9 +57,9 @@ func (j *JobHandler) WriteExcel(clientset *kubernetes.Clientset, f *excelize.Fil
 		name := job.Name
 		namespace := job.Namespace
 		nodeSelector := job.Spec.Template.Spec.NodeSelector
-		cpuRequests, memoryRequests, cpuLimits, memoryLimits := utils.ExtractResources(clientset, job.Spec.Template.Spec, namespace)
+		cpuRequests, memoryRequests, cpuLimits, memoryLimits, cpuDiff, memoryDiff, memoryReadiness, qosClass := utils.ExtractResources(clientset, job.Spec.Template.Spec, namespace)
 		imageVersions := utils.ExtractImageVersions(job.Spec.Template.Spec)
-		qosClass := utils.DetermineQoSClass(job.Spec.Template.Spec)
+		// qosClass := utils.DetermineQoSClass(job.Spec.Template.Spec)
 
 		record := []interface{}{
 			name,
@@ -66,6 +69,9 @@ func (j *JobHandler) WriteExcel(clientset *kubernetes.Clientset, f *excelize.Fil
 			memoryRequests,
 			cpuLimits,
 			memoryLimits,
+			cpuDiff,
+			memoryDiff,
+			memoryReadiness,
 			imageVersions,
 			qosClass,
 		}

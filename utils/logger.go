@@ -1,8 +1,6 @@
 package utils
 
 import (
-	"os"
-
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -15,7 +13,7 @@ func init() {
 	encoderCfg.EncodeTime = zapcore.ISO8601TimeEncoder
 
 	config := zap.Config{
-		Level:             zap.NewAtomicLevelAt(zap.InfoLevel),
+		Level:             zap.NewAtomicLevelAt(zap.WarnLevel),
 		Development:       false,
 		DisableCaller:     false,
 		DisableStacktrace: false,
@@ -27,9 +25,6 @@ func init() {
 		},
 		ErrorOutputPaths: []string{
 			"stderr",
-		},
-		InitialFields: map[string]interface{}{
-			"pid": os.Getpid(),
 		},
 	}
 	zapLog = zap.Must(config.Build())

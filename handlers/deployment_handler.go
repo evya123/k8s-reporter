@@ -33,6 +33,9 @@ var DeploymentHeaders = []string{
 	"Memory Requests",
 	"CPU Limits",
 	"Memory Limits",
+	"CPU Diff",
+	"Memory Diff",
+	"Memory diff > 2 x Request",
 	"Image Versions",
 	"QoS Class",
 	"Owner",
@@ -65,9 +68,9 @@ func (d *DeploymentHandler) WriteExcel(clientset *kubernetes.Clientset, f *excel
 		readyReplicas := deployment.Status.ReadyReplicas
 		uptodateReplicas := deployment.Status.UpdatedReplicas
 		nodeSelector := deployment.Spec.Template.Spec.NodeSelector
-		cpuRequests, memoryRequests, cpuLimits, memoryLimits := utils.ExtractResources(clientset, deployment.Spec.Template.Spec, namespace)
+		cpuRequests, memoryRequests, cpuLimits, memoryLimits, cpuDiff, memoryDiff, memoryReadiness, qosClass := utils.ExtractResources(clientset, deployment.Spec.Template.Spec, namespace)
 		imageVersions := utils.ExtractImageVersions(deployment.Spec.Template.Spec)
-		qosClass := utils.DetermineQoSClass(deployment.Spec.Template.Spec)
+		// qosClass := utils.DetermineQoSClass(deployment.Spec.Template.Spec)
 		desired := "unknown"
 		if desiredReplicas != nil {
 			desired = strconv.Itoa(int(*desiredReplicas))
@@ -86,6 +89,9 @@ func (d *DeploymentHandler) WriteExcel(clientset *kubernetes.Clientset, f *excel
 			memoryRequests,
 			cpuLimits,
 			memoryLimits,
+			cpuDiff,
+			memoryDiff,
+			memoryReadiness,
 			imageVersions,
 			qosClass,
 		}

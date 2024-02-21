@@ -34,6 +34,9 @@ var DaemonSetHeaders = []string{
 	"Memory Requests",
 	"CPU Limits",
 	"Memory Limits",
+	"CPU Diff",
+	"Memory Diff",
+	"Memory diff > 2 x Request",
 	"Image Versions",
 	"QoS Class",
 	"Owner",
@@ -61,9 +64,9 @@ func (d *DaemonSetHandler) WriteExcel(clientset *kubernetes.Clientset, f *exceli
 		name := ds.Name
 		namespace := ds.Namespace
 		podSpec := ds.Spec.Template.Spec
-		cpuRequests, memoryRequests, cpuLimits, memoryLimits := utils.ExtractResources(clientset, podSpec, namespace)
+		cpuRequests, memoryRequests, cpuLimits, memoryLimits, cpuDiff, memoryDiff, memoryReadiness, qosClass := utils.ExtractResources(clientset, podSpec, namespace)
 		imageVersions := utils.ExtractImageVersions(podSpec)
-		qosClass := utils.DetermineQoSClass(podSpec)
+		// qosClass := utils.DetermineQoSClass(podSpec)
 
 		record := []interface{}{
 			name,
@@ -78,6 +81,9 @@ func (d *DaemonSetHandler) WriteExcel(clientset *kubernetes.Clientset, f *exceli
 			memoryRequests,
 			cpuLimits,
 			memoryLimits,
+			cpuDiff,
+			memoryDiff,
+			memoryReadiness,
 			imageVersions,
 			qosClass,
 		}
